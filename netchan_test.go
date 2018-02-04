@@ -1,6 +1,7 @@
 package netchan_test
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -67,53 +68,103 @@ func TestSendRecv(t *testing.T) {
 	require.Equal(t, d, r.(data))
 }
 
-func TestSendRecver(t *testing.T) {
-	const name = "test"
+func ExampleTCP() {
+	const (
+		addr = ":8003"
+		name = "test"
+	)
 
 	type data struct {
 		A int
 		B float32
 	}
 
-	cases := []struct {
-		network, addr string
-	}{
-		{"tcp", ":8004"},
-		{"unix", "tmp"},
+	send := make(chan interface{})
+	recv := make(chan interface{})
+
+	sr := netchan.NewSendRecv("tcp")
+	go func() {
+		err := sr.ListenAndServe(addr)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	// wait for the server to start
+	time.Sleep(30 * time.Millisecond)
+
+	s := netchan.NewHandler(sr)
+	go func() {
+		err := s.HandleSend(addr, name, send)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	d := data{A: 1, B: 2}
+	send <- d
+	r := <-recv
+	fmt.Println(r)
+	// Output:
+	// {1 2}
+}
+
+func ExampleUnix() {
+	const (
+		addr = "tmp"
+		name = "test"
+	)
+
+	type data struct {
+		A int
+		B float32
 	}
 
-	for _, c := range cases {
-		c := c
-		send := make(chan interface{})
-		recv := make(chan interface{})
+	send := make(chan interface{})
+	recv := make(chan interface{})
 
-		sr := netchan.NewSendRecv(c.network)
-		go func() {
-			err := sr.ListenAndServe(c.addr)
-			require.Nil(t, err)
-		}()
-		// wait for the server to start
-		time.Sleep(30 * time.Millisecond)
-
-		s := netchan.NewHandler(sr)
-		go func() {
-			err := s.HandleSend(c.addr, name, send)
-			require.Nil(t, err)
-		}()
-
-		go func() {
-			err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
-			require.Nil(t, err)
-		}()
-
-		d := data{A: 1, B: 2}
-		send <- d
-		r := <-recv
-		require.Equal(t, d, r.(data))
-
-		if c.network == "unix" {
-			err := os.Remove(c.addr)
-			require.Nil(t, err)
+	sr := netchan.NewSendRecv("unix")
+	go func() {
+		err := sr.ListenAndServe(addr)
+		if err != nil {
+			panic(err)
 		}
+	}()
+
+	// wait for the server to start
+	time.Sleep(30 * time.Millisecond)
+
+	s := netchan.NewHandler(sr)
+	go func() {
+		err := s.HandleSend(addr, name, send)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	d := data{A: 1, B: 2}
+	send <- d
+	r := <-recv
+	fmt.Println(r)
+	// Output:
+	// {1 2}
+
+	err := os.Remove(addr)
+	if err != nil {
+		panic(err)
 	}
 }
