@@ -43,12 +43,16 @@ type SendRecver interface {
 type SendRecv struct {
 	network string
 	server  *RecvServer
+
+	mu      sync.Mutex
+	clients map[string]*rpc.Client
 }
 
 func NewSendRecv(network string) *SendRecv {
 	return &SendRecv{
 		network: network,
 		server:  &RecvServer{m: make(map[string]chan []byte)},
+		clients: make(map[string]*rpc.Client),
 	}
 }
 
@@ -69,14 +73,36 @@ func (s *SendRecv) Recv(name string) []byte {
 }
 
 func (s *SendRecv) Send(address, name string, body []byte) error {
-	// TODO: cache client
-	client, err := rpc.DialHTTP(s.network, address)
-	if err != nil {
-		return err
+	s.mu.Lock()
+	client := s.clients[address]
+	s.mu.Unlock()
+	if client == nil {
+		var err error
+		client, err = rpc.DialHTTP(s.network, address)
+		if err != nil {
+			return err
+		}
+	}
+
+	var oldClient *rpc.Client
+	s.mu.Lock()
+	if s.clients[address] == nil {
+		s.clients[address] = client
+	} else {
+		oldClient = client
+		client = s.clients[address]
+	}
+	s.mu.Unlock()
+
+	if oldClient != nil {
+		err := oldClient.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	req := Request{Name: name, Data: body}
-	err = client.Call("RecvServer.Put", req, nil)
+	err := client.Call("RecvServer.Put", req, nil)
 	if err != nil {
 		return err
 	}
