@@ -1,4 +1,7 @@
 # netchan
+
+[![Build Status](https://travis-ci.org/helinwang/netchan.svg?branch=master)](https://travis-ci.org/helinwang/netchan)
+
 Send and receive over the network with the built-in Go channel.
 
 ## Install
