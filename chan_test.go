@@ -14,12 +14,12 @@ type mySendRecver struct {
 	m  map[string]chan []byte
 }
 
-func (m *mySendRecver) Send(addr, topic string, body []byte) error {
+func (m *mySendRecver) Send(path string, body []byte) error {
 	m.mu.Lock()
-	ch := m.m[topic]
+	ch := m.m[path]
 	if ch == nil {
 		ch = make(chan []byte, 1000)
-		m.m[topic] = ch
+		m.m[path] = ch
 	}
 	m.mu.Unlock()
 
@@ -27,12 +27,12 @@ func (m *mySendRecver) Send(addr, topic string, body []byte) error {
 	return nil
 }
 
-func (m *mySendRecver) Recv(topic string) []byte {
+func (m *mySendRecver) Recv(path string) []byte {
 	m.mu.Lock()
-	ch := m.m[topic]
+	ch := m.m[path]
 	if ch == nil {
 		ch = make(chan []byte, 1000)
-		m.m[topic] = ch
+		m.m[path] = ch
 	}
 	m.mu.Unlock()
 
@@ -50,7 +50,7 @@ func TestSendRecv(t *testing.T) {
 
 	s := netchan.NewHandler(&mySendRecver{m: make(map[string]chan []byte)})
 	go func() {
-		err := s.HandleSend("", "test", send)
+		err := s.HandleSend("test", send)
 		require.Nil(t, err)
 	}()
 

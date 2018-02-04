@@ -1,8 +1,8 @@
 package netchan
 
 type SendRecver interface {
-	Send(addr, topic string, body []byte) error
-	Recv(topic string) []byte
+	Send(path string, body []byte) error
+	Recv(path string) []byte
 }
 
 type SendRecv struct {
@@ -16,12 +16,12 @@ func (s *SendRecv) ListenAndServe(addr string) {
 	// TODO
 }
 
-func (s *SendRecv) Recv(topic string) []byte {
+func (s *SendRecv) Recv(path string) []byte {
 	// TODO
 	return nil
 }
 
-func (s *SendRecv) Send(addr, topic string, body []byte) error {
+func (s *SendRecv) Send(path string, body []byte) error {
 	// TODO
 	return nil
 }
