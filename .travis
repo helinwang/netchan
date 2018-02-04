@@ -1,0 +1,15 @@
+language: go
+
+dist: trusty
+
+go:
+ - 1.9.3
+ 
+script:
+ - go test -v -cover ./...
+ - go fmt ./...
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
