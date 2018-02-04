@@ -96,8 +96,10 @@ func (s *SendRecv) Send(address, name string, body []byte) error {
 	if s.clients[address] == nil {
 		s.clients[address] = client
 	} else {
-		oldClient = client
-		client = s.clients[address]
+		if client != s.clients[address] {
+			oldClient = client
+			client = s.clients[address]
+		}
 	}
 	s.mu.Unlock()
 

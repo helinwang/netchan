@@ -110,7 +110,7 @@ func ExampleTCP() {
 
 	d := data{A: 1, B: 2}
 	send <- d
-	r := <-recv
+	r := (<-recv).(data)
 	fmt.Println(r)
 	// Output:
 	// {1 2}
@@ -158,7 +158,8 @@ func ExampleUnix() {
 
 	d := data{A: 1, B: 2}
 	send <- d
-	r := <-recv
+	r := (<-recv).(data)
+
 	fmt.Println(r)
 	// Output:
 	// {1 2}
