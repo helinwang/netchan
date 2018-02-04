@@ -1,6 +1,7 @@
 package netchan_test
 
 import (
+	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -67,40 +68,52 @@ func TestSendRecv(t *testing.T) {
 }
 
 func TestSendRecver(t *testing.T) {
-	const (
-		addr = ":8004"
-		name = "test"
-	)
+	const name = "test"
 
 	type data struct {
 		A int
 		B float32
 	}
 
-	send := make(chan interface{})
-	recv := make(chan interface{})
+	cases := []struct {
+		network, addr string
+	}{
+		{"tcp", ":8004"},
+		{"unix", "tmp"},
+	}
 
-	sr := netchan.NewSendRecv("tcp")
-	go func() {
-		err := sr.ListenAndServe(addr)
-		require.Nil(t, err)
-	}()
-	// wait for the server to start
-	time.Sleep(30 * time.Millisecond)
+	for _, c := range cases {
+		c := c
+		send := make(chan interface{})
+		recv := make(chan interface{})
 
-	s := netchan.NewHandler(sr)
-	go func() {
-		err := s.HandleSend(addr, name, send)
-		require.Nil(t, err)
-	}()
+		sr := netchan.NewSendRecv(c.network)
+		go func() {
+			err := sr.ListenAndServe(c.addr)
+			require.Nil(t, err)
+		}()
+		// wait for the server to start
+		time.Sleep(30 * time.Millisecond)
 
-	go func() {
-		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
-		require.Nil(t, err)
-	}()
+		s := netchan.NewHandler(sr)
+		go func() {
+			err := s.HandleSend(c.addr, name, send)
+			require.Nil(t, err)
+		}()
 
-	d := data{A: 1, B: 2}
-	send <- d
-	r := <-recv
-	require.Equal(t, d, r.(data))
+		go func() {
+			err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+			require.Nil(t, err)
+		}()
+
+		d := data{A: 1, B: 2}
+		send <- d
+		r := <-recv
+		require.Equal(t, d, r.(data))
+
+		if c.network == "unix" {
+			err := os.Remove(c.addr)
+			require.Nil(t, err)
+		}
+	}
 }

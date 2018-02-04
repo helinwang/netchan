@@ -57,14 +57,21 @@ func NewSendRecv(network string) *SendRecv {
 }
 
 func (s *SendRecv) ListenAndServe(address string) error {
-	rpc.Register(s.server)
-	rpc.HandleHTTP()
+	rpcServer := rpc.NewServer()
+	err := rpcServer.Register(s.server)
+	if err != nil {
+		return err
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(rpc.DefaultRPCPath, rpcServer)
+	mux.Handle(rpc.DefaultDebugPath, rpcServer)
 	l, err := net.Listen(s.network, address)
 	if err != nil {
 		return err
 	}
 
-	return http.Serve(l, nil)
+	return http.Serve(l, mux)
 }
 
 func (s *SendRecv) Recv(name string) []byte {
