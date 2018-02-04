@@ -14,9 +14,9 @@ func NewHandler(sr SendRecver) *Handler {
 	return &Handler{sr: sr}
 }
 
-func (s *Handler) HandleRecv(path string, ch chan<- interface{}, t reflect.Type) error {
+func (s *Handler) HandleRecv(name string, ch chan<- interface{}, t reflect.Type) error {
 	for {
-		body := s.sr.Recv(path)
+		body := s.sr.Recv(name)
 		v := reflect.New(t)
 		dec := gob.NewDecoder(bytes.NewReader(body))
 		err := dec.DecodeValue(v)
@@ -28,7 +28,7 @@ func (s *Handler) HandleRecv(path string, ch chan<- interface{}, t reflect.Type)
 	}
 }
 
-func (s *Handler) HandleSend(path string, ch <-chan interface{}) error {
+func (s *Handler) HandleSend(address, name string, ch <-chan interface{}) error {
 	for v := range ch {
 		var buf bytes.Buffer
 		enc := gob.NewEncoder(&buf)
@@ -37,7 +37,7 @@ func (s *Handler) HandleSend(path string, ch <-chan interface{}) error {
 			return err
 		}
 
-		err = s.sr.Send(path, buf.Bytes())
+		err = s.sr.Send(address, name, buf.Bytes())
 		if err != nil {
 			return err
 		}
