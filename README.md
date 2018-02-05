@@ -14,14 +14,14 @@ go get -u github.com/helinwang/netchan
 
 ## Examples
 
-Send and receive over TCP:
+Send and receive over TCP and UNIX:
 
 ```Go
-func ExampleTCP() {
+func Example() {
 	const (
-		network = "tcp"
-		addr    = ":8003"
-		name    = "test"
+		unixAddr = "tmp"
+		tcpAddr  = ":8003"
+		name     = "test"
 	)
 
 	type data struct {
@@ -29,12 +29,23 @@ func ExampleTCP() {
 		B float32
 	}
 
-	send := make(chan interface{})
+	tcpSend := make(chan interface{})
+	unixSend := make(chan interface{})
 	recv := make(chan interface{})
 
+	// this example shows sending and receiving over tcp and unix,
+	// but you can use only tcp or unix, just send or just
+	// receive.
 	sr := netchan.NewSendRecv()
 	go func() {
-		err := sr.ListenAndServe(network, addr)
+		err := sr.ListenAndServe("tcp", tcpAddr)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		err := sr.ListenAndServe("unix", unixAddr)
 		if err != nil {
 			panic(err)
 		}
@@ -45,7 +56,14 @@ func ExampleTCP() {
 
 	s := netchan.NewHandler(sr)
 	go func() {
-		err := s.HandleSend(network, addr, name, send)
+		err := s.HandleSend("tcp", tcpAddr, name, tcpSend)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		err := s.HandleSend("unix", unixAddr, name, unixSend)
 		if err != nil {
 			panic(err)
 		}
@@ -59,67 +77,19 @@ func ExampleTCP() {
 	}()
 
 	d := data{A: 1, B: 2}
-	send <- d
+	tcpSend <- d
 	r := (<-recv).(data)
+	fmt.Println(r)
+
+	d = data{A: 3, B: 4}
+	unixSend <- d
+	r = (<-recv).(data)
 	fmt.Println(r)
 	// Output:
 	// {1 2}
-}
-```
+	// {3 4}
 
-Send and receive over Unix domain socket:
-
-```Go
-func ExampleUnix() {
-	const (
-		network = "unix"
-		addr    = "tmp"
-		name    = "test"
-	)
-
-	type data struct {
-		A int
-		B float32
-	}
-
-	send := make(chan interface{})
-	recv := make(chan interface{})
-
-	sr := netchan.NewSendRecv()
-	go func() {
-		err := sr.ListenAndServe(network, addr)
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	// wait for the server to start
-	time.Sleep(30 * time.Millisecond)
-
-	s := netchan.NewHandler(sr)
-	go func() {
-		err := s.HandleSend(network, addr, name, send)
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	go func() {
-		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	d := data{A: 1, B: 2}
-	send <- d
-	r := (<-recv).(data)
-
-	fmt.Println(r)
-	// Output:
-	// {1 2}
-
-	err := os.Remove(addr)
+	err := os.Remove(unixAddr)
 	if err != nil {
 		panic(err)
 	}
