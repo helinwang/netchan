@@ -24,6 +24,8 @@ func Example() {
 		name     = "test"
 	)
 
+	// Struct's field names should be exported, otherwise, they
+	// will not be sent since they are ignored by the gob encoder.
 	type data struct {
 		A int
 		B float32
