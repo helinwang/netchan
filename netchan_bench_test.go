@@ -119,3 +119,45 @@ func BenchmarkTCPSendRecv(b *testing.B) {
 	}
 
 }
+
+func BenchmarkChanSendRecv(b *testing.B) {
+	const (
+		addr = ""
+		name = "test"
+	)
+
+	type data struct {
+		A int
+		B float32
+	}
+
+	send := make(chan interface{})
+	recv := make(chan interface{})
+
+	s := netchan.NewHandler(&mySendRecver{m: make(map[string]chan []byte)})
+	go func() {
+		err := s.HandleSend(addr, name, send)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		err := s.HandleRecv(name, recv, reflect.TypeOf(make([]byte, 0)))
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	toSend := make([][]byte, b.N)
+	for i := 0; i < b.N; i++ {
+		toSend[i] = make([]byte, 1000)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		send <- toSend[i]
+		<-recv
+	}
+
+}
