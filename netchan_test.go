@@ -17,7 +17,7 @@ type mySendRecver struct {
 	m  map[string]chan []byte
 }
 
-func (m *mySendRecver) Send(addr, name string, body []byte) error {
+func (m *mySendRecver) Send(network, addr, name string, body []byte) error {
 	m.mu.Lock()
 	ch := m.m[name]
 	if ch == nil {
@@ -53,7 +53,7 @@ func TestSendRecv(t *testing.T) {
 
 	s := netchan.NewHandler(&mySendRecver{m: make(map[string]chan []byte)})
 	go func() {
-		err := s.HandleSend("", "test", send)
+		err := s.HandleSend("", "", "test", send)
 		require.Nil(t, err)
 	}()
 
@@ -69,7 +69,10 @@ func TestSendRecv(t *testing.T) {
 }
 
 func TestSendRecver(t *testing.T) {
-	const name = "test"
+	const (
+		tcpAddr  = ":8004"
+		unixAddr = "tmp"
+	)
 
 	type data struct {
 		A int
@@ -77,33 +80,39 @@ func TestSendRecver(t *testing.T) {
 	}
 
 	cases := []struct {
-		network, addr string
+		network, addr, name string
 	}{
-		{"tcp", ":8004"},
-		{"unix", "tmp"},
+		{"unix", unixAddr, "unixCh"},
+		{"tcp", tcpAddr, "tcpCh"},
 	}
+
+	sr := netchan.NewSendRecv()
+	go func() {
+		err := sr.ListenAndServe("tcp", tcpAddr)
+		require.Nil(t, err)
+	}()
+
+	go func() {
+		err := sr.ListenAndServe("unix", unixAddr)
+		require.Nil(t, err)
+	}()
+
+	// wait for the server to start
+	time.Sleep(30 * time.Millisecond)
 
 	for _, c := range cases {
 		c := c
 		send := make(chan interface{})
 		recv := make(chan interface{})
 
-		sr := netchan.NewSendRecv(c.network)
-		go func() {
-			err := sr.ListenAndServe(c.addr)
-			require.Nil(t, err)
-		}()
-		// wait for the server to start
-		time.Sleep(30 * time.Millisecond)
-
 		s := netchan.NewHandler(sr)
 		go func() {
-			err := s.HandleSend(c.addr, name, send)
+			err := s.HandleSend(c.network, c.addr, c.name, send)
 			require.Nil(t, err)
 		}()
 
 		go func() {
-			err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+			err := s.HandleRecv(c.name, recv, reflect.TypeOf(data{}))
 			require.Nil(t, err)
 		}()
 
@@ -113,18 +122,17 @@ func TestSendRecver(t *testing.T) {
 			r := <-recv
 			require.Equal(t, d, r.(data))
 		}
-
-		if c.network == "unix" {
-			err := os.Remove(c.addr)
-			require.Nil(t, err)
-		}
 	}
+
+	err := os.Remove(unixAddr)
+	require.Nil(t, err)
 }
 
 func ExampleTCP() {
 	const (
-		addr = ":8003"
-		name = "test"
+		network = "tcp"
+		addr    = ":8003"
+		name    = "test"
 	)
 
 	type data struct {
@@ -135,9 +143,9 @@ func ExampleTCP() {
 	send := make(chan interface{})
 	recv := make(chan interface{})
 
-	sr := netchan.NewSendRecv("tcp")
+	sr := netchan.NewSendRecv()
 	go func() {
-		err := sr.ListenAndServe(addr)
+		err := sr.ListenAndServe(network, addr)
 		if err != nil {
 			panic(err)
 		}
@@ -148,7 +156,7 @@ func ExampleTCP() {
 
 	s := netchan.NewHandler(sr)
 	go func() {
-		err := s.HandleSend(addr, name, send)
+		err := s.HandleSend(network, addr, name, send)
 		if err != nil {
 			panic(err)
 		}
@@ -171,8 +179,9 @@ func ExampleTCP() {
 
 func ExampleUnix() {
 	const (
-		addr = "tmp"
-		name = "test"
+		network = "unix"
+		addr    = "tmp"
+		name    = "test"
 	)
 
 	type data struct {
@@ -183,9 +192,9 @@ func ExampleUnix() {
 	send := make(chan interface{})
 	recv := make(chan interface{})
 
-	sr := netchan.NewSendRecv("unix")
+	sr := netchan.NewSendRecv()
 	go func() {
-		err := sr.ListenAndServe(addr)
+		err := sr.ListenAndServe(network, addr)
 		if err != nil {
 			panic(err)
 		}
@@ -196,7 +205,7 @@ func ExampleUnix() {
 
 	s := netchan.NewHandler(sr)
 	go func() {
-		err := s.HandleSend(addr, name, send)
+		err := s.HandleSend(network, addr, name, send)
 		if err != nil {
 			panic(err)
 		}

@@ -36,7 +36,7 @@ func (s *RecvServer) Put(req Request, _ *int) error {
 }
 
 type SendRecver interface {
-	Send(address, name string, body []byte) error
+	Send(network, address, name string, body []byte) error
 	Recv(name string) []byte
 }
 
@@ -48,15 +48,14 @@ type SendRecv struct {
 	clients map[string]*rpc.Client
 }
 
-func NewSendRecv(network string) *SendRecv {
+func NewSendRecv() *SendRecv {
 	return &SendRecv{
-		network: network,
 		server:  &RecvServer{m: make(map[string]chan []byte)},
 		clients: make(map[string]*rpc.Client),
 	}
 }
 
-func (s *SendRecv) ListenAndServe(address string) error {
+func (s *SendRecv) ListenAndServe(network, address string) error {
 	rpcServer := rpc.NewServer()
 	err := rpcServer.Register(s.server)
 	if err != nil {
@@ -66,7 +65,7 @@ func (s *SendRecv) ListenAndServe(address string) error {
 	mux := http.NewServeMux()
 	mux.Handle(rpc.DefaultRPCPath, rpcServer)
 	mux.Handle(rpc.DefaultDebugPath, rpcServer)
-	l, err := net.Listen(s.network, address)
+	l, err := net.Listen(network, address)
 	if err != nil {
 		return err
 	}
@@ -79,13 +78,13 @@ func (s *SendRecv) Recv(name string) []byte {
 	return <-ch
 }
 
-func (s *SendRecv) Send(address, name string, body []byte) error {
+func (s *SendRecv) Send(network, address, name string, body []byte) error {
 	s.mu.Lock()
 	client := s.clients[address]
 	s.mu.Unlock()
 	if client == nil {
 		var err error
-		client, err = rpc.DialHTTP(s.network, address)
+		client, err = rpc.DialHTTP(network, address)
 		if err != nil {
 			return err
 		}

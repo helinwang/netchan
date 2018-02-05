@@ -18,51 +18,52 @@ Send and receive over TCP:
 
 ```Go
 func ExampleTCP() {
-        const (
-                addr = ":8003"
-                name = "test"
-        )
+	const (
+		network = "tcp"
+		addr    = ":8003"
+		name    = "test"
+	)
 
-        type data struct {
-                A int
-                B float32
-        }
+	type data struct {
+		A int
+		B float32
+	}
 
-        send := make(chan interface{})
-        recv := make(chan interface{})
+	send := make(chan interface{})
+	recv := make(chan interface{})
 
-        sr := netchan.NewSendRecv("tcp")
-        go func() {
-                err := sr.ListenAndServe(addr)
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	sr := netchan.NewSendRecv()
+	go func() {
+		err := sr.ListenAndServe(network, addr)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        // wait for the server to start                                                                                                                
-        time.Sleep(30 * time.Millisecond)
+	// wait for the server to start
+	time.Sleep(30 * time.Millisecond)
 
-        s := netchan.NewHandler(sr)
-        go func() {
-                err := s.HandleSend(addr, name, send)
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	s := netchan.NewHandler(sr)
+	go func() {
+		err := s.HandleSend(network, addr, name, send)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        go func() {
-                err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	go func() {
+		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        d := data{A: 1, B: 2}
-        send <- d
-        r := <-recv
-        fmt.Println(r)
-        // Output:                                                                                                                                     
-        // {1 2}                                                                                                                                       
+	d := data{A: 1, B: 2}
+	send <- d
+	r := (<-recv).(data)
+	fmt.Println(r)
+	// Output:
+	// {1 2}
 }
 ```
 
@@ -70,55 +71,57 @@ Send and receive over Unix domain socket:
 
 ```Go
 func ExampleUnix() {
-        const (
-                addr = "tmp"
-                name = "test"
-        )
+	const (
+		network = "unix"
+		addr    = "tmp"
+		name    = "test"
+	)
 
-        type data struct {
-                A int
-                B float32
-        }
+	type data struct {
+		A int
+		B float32
+	}
 
-        send := make(chan interface{})
-        recv := make(chan interface{})
+	send := make(chan interface{})
+	recv := make(chan interface{})
 
-        sr := netchan.NewSendRecv("unix")
-        go func() {
-                err := sr.ListenAndServe(addr)
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	sr := netchan.NewSendRecv()
+	go func() {
+		err := sr.ListenAndServe(network, addr)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        // wait for the server to start                                                                                                                
-        time.Sleep(30 * time.Millisecond)
+	// wait for the server to start
+	time.Sleep(30 * time.Millisecond)
 
-        s := netchan.NewHandler(sr)
-        go func() {
-                err := s.HandleSend(addr, name, send)
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	s := netchan.NewHandler(sr)
+	go func() {
+		err := s.HandleSend(network, addr, name, send)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        go func() {
-                err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
-                if err != nil {
-                        panic(err)
-                }
-        }()
+	go func() {
+		err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-        d := data{A: 1, B: 2}
-        send <- d
-        r := <-recv
-        fmt.Println(r)
-        // Output:                                                                                                                                     
-        // {1 2}                                                                                                                                       
+	d := data{A: 1, B: 2}
+	send <- d
+	r := (<-recv).(data)
 
-        err := os.Remove(addr)
-        if err != nil {
-                panic(err)
-        }
+	fmt.Println(r)
+	// Output:
+	// {1 2}
+
+	err := os.Remove(addr)
+	if err != nil {
+		panic(err)
+	}
 }
 ```

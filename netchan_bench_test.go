@@ -24,9 +24,9 @@ func BenchmarkUnixSendRecv(b *testing.B) {
 	send := make(chan interface{})
 	recv := make(chan interface{})
 
-	sr := netchan.NewSendRecv("unix")
+	sr := netchan.NewSendRecv()
 	go func() {
-		err := sr.ListenAndServe(addr)
+		err := sr.ListenAndServe("unix", addr)
 		if err != nil {
 			panic(err)
 		}
@@ -37,7 +37,7 @@ func BenchmarkUnixSendRecv(b *testing.B) {
 
 	s := netchan.NewHandler(sr)
 	go func() {
-		err := s.HandleSend(addr, name, send)
+		err := s.HandleSend("unix", addr, name, send)
 		if err != nil {
 			panic(err)
 		}
@@ -81,9 +81,9 @@ func BenchmarkTCPSendRecv(b *testing.B) {
 	send := make(chan interface{})
 	recv := make(chan interface{})
 
-	sr := netchan.NewSendRecv("tcp")
+	sr := netchan.NewSendRecv()
 	go func() {
-		err := sr.ListenAndServe(addr)
+		err := sr.ListenAndServe("tcp", addr)
 		if err != nil {
 			panic(err)
 		}
@@ -94,7 +94,7 @@ func BenchmarkTCPSendRecv(b *testing.B) {
 
 	s := netchan.NewHandler(sr)
 	go func() {
-		err := s.HandleSend(addr, name, send)
+		err := s.HandleSend("tcp", addr, name, send)
 		if err != nil {
 			panic(err)
 		}
@@ -136,7 +136,7 @@ func BenchmarkChanSendRecv(b *testing.B) {
 
 	s := netchan.NewHandler(&mySendRecver{m: make(map[string]chan []byte)})
 	go func() {
-		err := s.HandleSend(addr, name, send)
+		err := s.HandleSend("", addr, name, send)
 		if err != nil {
 			panic(err)
 		}

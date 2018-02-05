@@ -28,7 +28,7 @@ func (s *Handler) HandleRecv(name string, ch chan<- interface{}, t reflect.Type)
 	}
 }
 
-func (s *Handler) HandleSend(address, name string, ch <-chan interface{}) error {
+func (s *Handler) HandleSend(network, address, name string, ch <-chan interface{}) error {
 	for v := range ch {
 		var buf bytes.Buffer
 		enc := gob.NewEncoder(&buf)
@@ -37,7 +37,7 @@ func (s *Handler) HandleSend(address, name string, ch <-chan interface{}) error 
 			return err
 		}
 
-		err = s.sr.Send(address, name, buf.Bytes())
+		err = s.sr.Send(network, address, name, buf.Bytes())
 		if err != nil {
 			return err
 		}
