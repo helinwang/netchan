@@ -68,6 +68,59 @@ func TestSendRecv(t *testing.T) {
 	require.Equal(t, d, r.(data))
 }
 
+func TestSendRecver(t *testing.T) {
+	const name = "test"
+
+	type data struct {
+		A int
+		B float32
+	}
+
+	cases := []struct {
+		network, addr string
+	}{
+		{"tcp", ":8004"},
+		{"unix", "tmp"},
+	}
+
+	for _, c := range cases {
+		c := c
+		send := make(chan interface{})
+		recv := make(chan interface{})
+
+		sr := netchan.NewSendRecv(c.network)
+		go func() {
+			err := sr.ListenAndServe(c.addr)
+			require.Nil(t, err)
+		}()
+		// wait for the server to start
+		time.Sleep(30 * time.Millisecond)
+
+		s := netchan.NewHandler(sr)
+		go func() {
+			err := s.HandleSend(c.addr, name, send)
+			require.Nil(t, err)
+		}()
+
+		go func() {
+			err := s.HandleRecv(name, recv, reflect.TypeOf(data{}))
+			require.Nil(t, err)
+		}()
+
+		for i := 0; i < 100; i++ {
+			d := data{A: i, B: float32(i)}
+			send <- d
+			r := <-recv
+			require.Equal(t, d, r.(data))
+		}
+
+		if c.network == "unix" {
+			err := os.Remove(c.addr)
+			require.Nil(t, err)
+		}
+	}
+}
+
 func ExampleTCP() {
 	const (
 		addr = ":8003"
